@@ -37,15 +37,18 @@ def plot_class_distribution(y: pd.Series, title: str = "Spambase Class Distribut
 def plot_feature_comparison_box(df: pd.DataFrame, feature_name: str, title: Optional[str] = None, save_path: Optional[str] = None):
     """Plot boxplot comparing a numerical feature between Spam and Non-Spam."""
     fig, ax = plt.subplots(figsize=(6.5, 4.5))
+    plot_df = df.copy()
+    plot_df["Email Class"] = plot_df["is_spam"].map({0: "Non-Spam (0)", 1: "Spam (1)"})
     sns.boxplot(
-        x="is_spam",
+        x="Email Class",
         y=feature_name,
-        data=df,
-        palette=["#2b5c8f", "#d95f02"],
+        hue="Email Class",
+        data=plot_df,
+        palette={"Non-Spam (0)": "#2b5c8f", "Spam (1)": "#d95f02"},
         ax=ax,
-        showfliers=False
+        showfliers=False,
+        legend=False
     )
-    ax.set_xticklabels(["Non-Spam (0)", "Spam (1)"], fontsize=10)
     ax.set_xlabel("Email Class", fontsize=11)
     ax.set_ylabel(f"{feature_name} (%)", fontsize=11)
     ax.set_title(title or f"Comparison of '{feature_name}' (Outliers Excluded)", fontsize=12, fontweight="bold", pad=12)
