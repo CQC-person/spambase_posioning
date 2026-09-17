@@ -17,9 +17,9 @@ def plot_class_distribution(y: pd.Series, title: str = "Spambase Class Distribut
     bars = ax.bar(labels, counts.values, color=["#2b5c8f", "#d95f02"], edgecolor="black", width=0.5)
     
     for bar, pct in zip(bars, percentages):
-        height = bar.get_height()
-        ax.annotate(f"{height:,}
-({pct:.1f}%)",
+        height = int(bar.get_height())
+        label_text = f"{height:,}\n({pct:.1f}%)"
+        ax.annotate(label_text,
                     xy=(bar.get_x() + bar.get_width() / 2, height),
                     xytext=(0, 3), textcoords="offset points",
                     ha="center", va="bottom", fontsize=10, fontweight="bold")
@@ -102,8 +102,8 @@ def plot_confusion_matrices(cms: Dict[str, np.ndarray], title_prefix: str = "Cle
             yticklabels=["True Ham (0)", "True Spam (1)"],
             annot_kws={"size": 12, "weight": "bold"}
         )
-        ax.set_title(f"{name}
-({title_prefix})", fontsize=11, fontweight="bold")
+        title_text = f"{name}\n({title_prefix})"
+        ax.set_title(title_text, fontsize=11, fontweight="bold")
         ax.set_ylabel("Actual Label", fontsize=10)
         ax.set_xlabel("Predicted Label", fontsize=10)
 
