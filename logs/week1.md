@@ -1,0 +1,10 @@
+# Research Log: Week 1 - Baseline and First Poisoning Attack
+
+## What I Learned
+During Week 1, I established a robust baseline for classical spam classification using the UCI Spambase dataset (4,601 instances, 57 continuous numerical features). I grounded our work in the NIST adversarial machine learning taxonomy (NIST AI 100-2e2023), specifically analyzing training-time causative attacks and label flipping. I formalized our threat model, identifying the email filtering gateway as the protected system, the external spammer as the attacker with training-data label control, and the training labels as the manipulated asset. Implementing the 5% random label flipping attack (modifying exactly 184 of the 3,680 training samples) demonstrated how data poisoning operates prior to training by corrupting the loss surface. The empirical results confirmed that Logistic Regression experienced a notable drop in spam recall (from 89.81% to 86.50%, a -3.31% drop) and F1-score (from 90.93% to 88.70%). Conversely, Random Forest demonstrated strong resilience, maintaining a 90.63% spam recall due to bagging and feature subsampling.
+
+## What Failed
+In the initial pilot split, the Decision Tree exhibited counter-intuitive fluctuations, with spam recall slightly increasing from 83.75% to 84.85% under 5% random poisoning. An investigation revealed that a single unpruned or moderately pruned decision tree without ensemble averaging is highly sensitive to the stochasticity of specific label flips near decision boundaries. This highlighted why single-seed observations can be misleading and reinforced the necessity of our multi-seed pilot design (seeds 0, 1, 2) in Stage 3.
+
+## Next Steps
+For Week 2, I will transition from the single notebook demonstration to modular, fully tested attack implementations in `src/attacks.py`. Specifically, I will implement both `random_label_flip` and the targeted `targeted_spam_to_ham` attack with unit tests in `tests/test_attacks.py` to enforce strict poison count invariants, directional validity, and test-set isolation.
