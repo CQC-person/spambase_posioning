@@ -164,3 +164,75 @@ def plot_clean_vs_poisoned_metrics(clean_df: pd.DataFrame, poisoned_df: pd.DataF
     if save_path:
         plt.savefig(save_path, dpi=300)
     return fig, axes
+
+
+def plot_attack_class_distributions(
+    random_stats_df: pd.DataFrame,
+    targeted_stats_df: pd.DataFrame,
+    save_path: Optional[str] = None
+):
+    """Plot class distribution shifts across poisoning rates for Random vs Targeted attacks.
+
+    Parameters
+    ----------
+    random_stats_df : pd.DataFrame
+        DataFrame with columns ['Poison Rate', 'Spam Count', 'Ham Count', 'Spam Pct', 'Ham Pct'].
+    targeted_stats_df : pd.DataFrame
+        DataFrame with columns ['Poison Rate', 'Spam Count', 'Ham Count', 'Spam Pct', 'Ham Pct'].
+    save_path : Optional[str]
+        Path to save the generated figure.
+    """
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+
+    rates = random_stats_df["Poison Rate"].tolist()
+    x = np.arange(len(rates))
+    width = 0.35
+
+    # Subplot 1: Apparent Spam Percentage
+    ax1.plot(
+        rates, random_stats_df["Spam Pct"],
+        marker="o", linewidth=2.5, markersize=8, color="#2b5c8f",
+        label="Random Flipping (Indiscriminate / Availability)"
+    )
+    ax1.plot(
+        rates, targeted_stats_df["Spam Pct"],
+        marker="s", linewidth=2.5, markersize=8, color="#d95f02",
+        label="Targeted Spam->Ham (Evasion / Integrity)"
+    )
+
+    for i, rate in enumerate(rates):
+        r_pct = random_stats_df.loc[i, "Spam Pct"]
+        t_pct = targeted_stats_df.loc[i, "Spam Pct"]
+        ax1.annotate(f"{r_pct:.1f}%", (rate, r_pct), textcoords="offset points", xytext=(0, 7), ha="center", fontsize=9, fontweight="bold", color="#2b5c8f")
+        ax1.annotate(f"{t_pct:.1f}%", (rate, t_pct), textcoords="offset points", xytext=(0, -14), ha="center", fontsize=9, fontweight="bold", color="#d95f02")
+
+    ax1.set_title("Training Set Apparent Spam Proportion vs. Poison Rate", fontsize=12, fontweight="bold", pad=12)
+    ax1.set_xlabel("Poisoning Rate", fontsize=11)
+    ax1.set_ylabel("Apparent Spam Percentage (%)", fontsize=11)
+    ax1.set_ylim(10, 50)
+    ax1.grid(True, linestyle="--", alpha=0.5)
+    ax1.legend(frameon=True, loc="upper right")
+
+    # Subplot 2: Stacked Counts Comparison for Targeted Attack
+    ax2.bar(x - width/2, targeted_stats_df["Ham Count"], width, label="Ham (Non-Spam)", color="#2b5c8f", edgecolor="black")
+    ax2.bar(x + width/2, targeted_stats_df["Spam Count"], width, label="Spam (Remaining)", color="#d95f02", edgecolor="black")
+
+    for i in range(len(rates)):
+        h_cnt = targeted_stats_df.loc[i, "Ham Count"]
+        s_cnt = targeted_stats_df.loc[i, "Spam Count"]
+        ax2.annotate(f"{h_cnt}", (x[i] - width/2, h_cnt), textcoords="offset points", xytext=(0, 3), ha="center", fontsize=8.5)
+        ax2.annotate(f"{s_cnt}", (x[i] + width/2, s_cnt), textcoords="offset points", xytext=(0, 3), ha="center", fontsize=8.5, fontweight="bold", color="#d95f02")
+
+    ax2.set_title("Targeted Attack: Class Counts Breakdown Across Poison Rates", fontsize=12, fontweight="bold", pad=12)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(rates, fontsize=10)
+    ax2.set_xlabel("Poisoning Rate", fontsize=11)
+    ax2.set_ylabel("Number of Samples in Training Set", fontsize=11)
+    ax2.set_ylim(0, 3500)
+    ax2.grid(axis="y", linestyle="--", alpha=0.5)
+    ax2.legend(frameon=True, loc="upper left")
+
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+    return fig, (ax1, ax2)
