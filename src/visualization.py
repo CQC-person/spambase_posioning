@@ -236,3 +236,157 @@ def plot_attack_class_distributions(
     if save_path:
         plt.savefig(save_path, dpi=300)
     return fig, (ax1, ax2)
+
+
+def plot_pilot_learning_curves(
+    results_df: pd.DataFrame,
+    metric: str = "spam_recall",
+    metric_display_name: str = "Spam Recall",
+    save_path: Optional[str] = None
+):
+    """Plot multi-seed mean and standard deviation curves comparing Random vs Targeted attacks.
+
+    Parameters
+    ----------
+    results_df : pd.DataFrame
+        81-row pilot results DataFrame.
+    metric : str
+        Column name to plot ('spam_recall', 'spam_f1', 'spam_precision', 'accuracy').
+    metric_display_name : str
+        Display title for the metric.
+    save_path : Optional[str]
+        File path to save the generated plot.
+    """
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5.5), sharey=True)
+
+    clean_sub = results_df[results_df["attack"] == "clean"].copy()
+
+    random_sub = results_df[results_df["attack"] == "random"].copy()
+    clean_for_random = clean_sub.copy()
+    clean_for_random["attack"] = "random"
+    random_full = pd.concat([clean_for_random, random_sub], ignore_index=True)
+
+    targeted_sub = results_df[results_df["attack"] == "targeted"].copy()
+    clean_for_targeted = clean_sub.copy()
+    clean_for_targeted["attack"] = "targeted"
+    targeted_full = pd.concat([clean_for_targeted, targeted_sub], ignore_index=True)
+
+    model_styles = {
+        "Logistic Regression": {"color": "#2b5c8f", "marker": "o", "ls": "-"},
+        "Decision Tree": {"color": "#7570b3", "marker": "^", "ls": "--"},
+        "Random Forest": {"color": "#1b9e77", "marker": "s", "ls": "-."}
+    }
+
+    rates = [0.0, 0.01, 0.05, 0.10, 0.20]
+    rate_labels = ["0%", "1%", "5%", "10%", "20%"]
+
+    for ax, data_subset, attack_title in [
+        (ax1, random_full, "Random Label Flipping (Availability Threat)"),
+        (ax2, targeted_full, "Targeted Spam->Ham Flipping (Integrity Threat)")
+    ]:
+        for model_name, style in model_styles.items():
+            m_data = data_subset[data_subset["model"] == model_name]
+            stats = m_data.groupby("poison_rate")[metric].agg(["mean", "std"]).reindex(rates)
+
+            means = stats["mean"].values
+            stds = stats["std"].fillna(0.0).values
+
+            ax.plot(
+                rates, means,
+                label=model_name,
+                color=style["color"],
+                marker=style["marker"],
+                linestyle=style["ls"],
+                linewidth=2.2,
+                markersize=7
+            )
+            ax.fill_between(
+                rates,
+                np.maximum(0, means - stds),
+                np.minimum(1.0, means + stds),
+                color=style["color"],
+                alpha=0.15
+            )
+
+        ax.set_title(attack_title, fontsize=12, fontweight="bold", pad=12)
+        ax.set_xticks(rates)
+        ax.set_xticklabels(rate_labels, fontsize=10)
+        ax.set_xlabel("Poisoning Rate", fontsize=11)
+        ax.set_ylabel(metric_display_name, fontsize=11)
+        ax.set_ylim(0.0, 1.02)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(frameon=True, loc="lower left" if metric == "spam_recall" else "best")
+
+    plt.suptitle(f"Pilot Study (Seeds 0, 1, 2): {metric_display_name} Mean ± 1 Std across Poisoning Rates", fontsize=14, fontweight="bold", y=0.98)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+    return fig, (ax1, ax2)
+
+
+def plot_pilot_multi_metric_grid(
+    results_df: pd.DataFrame,
+    save_path: Optional[str] = None
+):
+    """Plot 2x2 grid of performance metrics (Spam Recall, Spam F1, Spam Precision, Accuracy)."""
+    fig, axes = plt.subplots(2, 2, figsize=(15, 11))
+    metrics_info = [
+        ("spam_recall", "Spam Recall (Primary Metric)", axes[0, 0]),
+        ("spam_f1", "Spam F1-Score (Primary Metric)", axes[0, 1]),
+        ("spam_precision", "Spam Precision (Supporting Metric)", axes[1, 0]),
+        ("accuracy", "Overall Accuracy (Supporting Metric)", axes[1, 1])
+    ]
+
+    clean_sub = results_df[results_df["attack"] == "clean"].copy()
+    targeted_sub = results_df[results_df["attack"] == "targeted"].copy()
+    clean_for_targeted = clean_sub.copy()
+    clean_for_targeted["attack"] = "targeted"
+    targeted_full = pd.concat([clean_for_targeted, targeted_sub], ignore_index=True)
+
+    random_sub = results_df[results_df["attack"] == "random"].copy()
+    clean_for_random = clean_sub.copy()
+    clean_for_random["attack"] = "random"
+    random_full = pd.concat([clean_for_random, random_sub], ignore_index=True)
+
+    rates = [0.0, 0.01, 0.05, 0.10, 0.20]
+    rate_labels = ["0%", "1%", "5%", "10%", "20%"]
+
+    model_colors = {
+        "Logistic Regression": "#2b5c8f",
+        "Decision Tree": "#7570b3",
+        "Random Forest": "#1b9e77"
+    }
+
+    for metric_col, title, ax in metrics_info:
+        for model_name, color in model_colors.items():
+            # Solid line for Targeted, Dashed line for Random
+            t_data = targeted_full[targeted_full["model"] == model_name]
+            t_stats = t_data.groupby("poison_rate")[metric_col].agg(["mean"]).reindex(rates)
+            ax.plot(
+                rates, t_stats["mean"].values,
+                color=color, linestyle="-", marker="o", linewidth=2.0, markersize=6,
+                label=f"{model_name} (Targeted)"
+            )
+
+            r_data = random_full[random_full["model"] == model_name]
+            r_stats = r_data.groupby("poison_rate")[metric_col].agg(["mean"]).reindex(rates)
+            ax.plot(
+                rates, r_stats["mean"].values,
+                color=color, linestyle=":", marker="x", linewidth=1.5, markersize=5, alpha=0.75,
+                label=f"{model_name} (Random)"
+            )
+
+        ax.set_title(title, fontsize=12, fontweight="bold", pad=10)
+        ax.set_xticks(rates)
+        ax.set_xticklabels(rate_labels, fontsize=10)
+        ax.set_xlabel("Poisoning Rate", fontsize=10)
+        ax.set_ylabel("Score", fontsize=10)
+        ax.set_ylim(0.0, 1.02)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(frameon=True, fontsize=8, loc="lower left" if "recall" in metric_col else "best")
+
+    plt.suptitle("Multi-Metric Comparison: Targeted (Solid) vs Random (Dotted) Across Models (Seeds 0, 1, 2 Mean)", fontsize=14, fontweight="bold", y=0.99)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=300)
+    return fig, axes
